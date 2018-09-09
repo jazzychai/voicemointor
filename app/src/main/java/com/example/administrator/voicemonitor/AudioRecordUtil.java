@@ -79,6 +79,7 @@ public class AudioRecordUtil {
                             Intent intent = new Intent();
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             intent.setAction("com.sendSMS");
+                            intent.setAction("com.sendEmail");
                             PApplication.getAppContext().sendBroadcast(intent);
                         }
                     }

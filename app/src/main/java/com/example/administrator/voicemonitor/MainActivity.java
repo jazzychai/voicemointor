@@ -20,6 +20,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.telephony.SmsManager;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
@@ -28,6 +29,12 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,12 +44,14 @@ public class MainActivity extends AppCompatActivity {
     public Button startButton, sendMsgBtn;
     public boolean isOSVersionOver23;
     public EditText phoneNum;
+    public EditText email;
     public EditText textMsg;
     public EditText volum;
     public EditText textRate;
     public ProgressBar proBar;
     public TextView tvOfVol;
     public String[] phoneNums;
+    public String[] emails;
 
     @TargetApi(Build.VERSION_CODES.M)
     @Override
@@ -63,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
         registerReceiver(send, new IntentFilter("com.send"));
         registerReceiver(delivery, new IntentFilter("com.delivery"));
         registerReceiver(sendSms, new IntentFilter("com.sendSMS"));
+        registerReceiver(sendEmail, new IntentFilter("com.sendEmail"));
         registerReceiver(sendProgress, new IntentFilter("com.sendProgress"));
     }
 
@@ -70,6 +80,9 @@ public class MainActivity extends AppCompatActivity {
 
         if (PreferencesUtil.getString("phoneNum") != null) {
             phoneNum.setText(PreferencesUtil.getString("phoneNum"));
+        }
+        if (PreferencesUtil.getString("email") != null) {
+            email.setText(PreferencesUtil.getString("email"));
         }
         if (PreferencesUtil.getString("textMsg") != null) {
             textMsg.setText(PreferencesUtil.getString("textMsg"));
@@ -88,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
         unregisterReceiver(send);
         unregisterReceiver(delivery);
         unregisterReceiver(sendSms);
+        unregisterReceiver(sendEmail);
         unregisterReceiver(sendProgress);
     }
 
@@ -104,8 +118,8 @@ public class MainActivity extends AppCompatActivity {
                 v.requestFocusFromTouch();
 
 
-                if (TextUtils.isEmpty(phoneNum.getText().toString().trim())) {
-                    Toast.makeText(MainActivity.this, "对方的手机号不能为空", Toast.LENGTH_SHORT).show();
+                if (TextUtils.isEmpty(phoneNum.getText().toString().trim()) && TextUtils.isEmpty(email.getText().toString().trim())) {
+                    Toast.makeText(MainActivity.this, "手机号和邮箱至少有一个不为空", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 Pattern p = Pattern.compile("[0-9]*");
@@ -119,6 +133,10 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
                 }
+                //拆分邮箱
+                String emailString = email.getText().toString().trim().replace("，", ",");
+                emails = emailString.split(",");
+
                 if (TextUtils.isEmpty(textMsg.getText().toString().trim())) {
                     textMsg.setText("有声音响了");
                 }
@@ -143,9 +161,12 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, "频率范围为2 - 20", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                saveValueToLocal(phoneNum.getText().toString().trim(), textMsg.getText().toString().trim(), volumNum, txtRate);
+                saveValueToLocal(phoneNum.getText().toString().trim(),email.getText().toString().trim(), textMsg.getText().toString().trim(), volumNum, txtRate);
                 AudioRecordUtil.getInstance().voiceNum = volumNum;
                 AudioRecordUtil.getInstance().textRate = txtRate;
+
+
+
                 if (isOSVersionOver23) {
                     if (checkPermission()) {
                         if (AudioRecordUtil.getInstance().isGetVoiceRun) {
@@ -155,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
                             proBar.setProgress(0);
                         } else {
                             AudioRecordUtil.getInstance().isGetVoiceRun = true;
-                            startButton.setText("监听中...");
+                            startButton.setText("监听中....");
                             AudioRecordUtil.getInstance().getNoiseLevel();
                         }
                     }
@@ -167,8 +188,13 @@ public class MainActivity extends AppCompatActivity {
                         proBar.setProgress(0);
                     } else {
                         AudioRecordUtil.getInstance().isGetVoiceRun = true;
-                        startButton.setText("监听中...");
+                        startButton.setText("监听中......");
                         AudioRecordUtil.getInstance().getNoiseLevel();
+
+                        Intent intent = new Intent();
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        intent.setAction("com.sendSMS");
+                        intent.setAction("com.sendEmail");
                     }
                 }
             }
@@ -185,11 +211,13 @@ public class MainActivity extends AppCompatActivity {
         });
 
         phoneNum = (EditText) findViewById(R.id.phoneNum);
+        email = (EditText) findViewById(R.id.email);
         textMsg = (EditText) findViewById(R.id.textMsg);
         volum = (EditText) findViewById(R.id.volum);
         textRate = (EditText) findViewById(R.id.rate);
         View.OnFocusChangeListener onFocusChangeListener = new MyFocusChangeListener();
         phoneNum.setOnFocusChangeListener(onFocusChangeListener);
+        email.setOnFocusChangeListener(onFocusChangeListener);
         textMsg.setOnFocusChangeListener(onFocusChangeListener);
         volum.setOnFocusChangeListener(onFocusChangeListener);
         textRate.setOnFocusChangeListener(onFocusChangeListener);
@@ -201,8 +229,9 @@ public class MainActivity extends AppCompatActivity {
         tvOfVol = (TextView) findViewById(R.id.tv_curvol);
     }
 
-    private void saveValueToLocal(String phone, String text, int vol, int txtRate) {
+    private void saveValueToLocal(String phone, String email,String text, int vol, int txtRate) {
         PreferencesUtil.putString("phoneNum", phone);
+        PreferencesUtil.putString("email", email);
         PreferencesUtil.putString("textMsg", text);
         PreferencesUtil.putInt("volum", vol);
         PreferencesUtil.putInt("textRate", txtRate);
@@ -281,6 +310,41 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    BroadcastReceiver sendEmail = new BroadcastReceiver() {
+        @TargetApi(Build.VERSION_CODES.M)
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (checkPermission()) {
+                for(int i = 0; i< emails.length; i++) {
+                    //发送邮箱
+                    HttpURLConnection conn=null;//声明连接对象
+                    String urlStr="https://www.apieye.com/ress104.php";
+                    InputStream is = null;
+                    String resultData = "";
+                    try {
+                        URL url = new URL(urlStr); //URL对象
+                        conn = (HttpURLConnection)url.openConnection(); //使用URL打开一个链接,下面设置这个连接
+                        conn.setRequestMethod("GET"); //使用get请求
+
+                        if(conn.getResponseCode()==200){//返回200表示连接成功
+                            is = conn.getInputStream(); //获取输入流
+                            InputStreamReader isr = new InputStreamReader(is);
+                            BufferedReader bufferReader = new BufferedReader(isr);
+                            String inputLine  = "";
+                            while((inputLine = bufferReader.readLine()) != null){
+                                resultData += inputLine + "\n";
+                            }
+                        }
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                }
+            }
+        }
+    };
+
     BroadcastReceiver sendProgress = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -295,7 +359,7 @@ public class MainActivity extends AppCompatActivity {
 
         public void onFocusChange(View v, boolean hasFocus){
 
-            if((v.getId() == R.id.phoneNum && !hasFocus) || (v.getId() == R.id.textMsg && !hasFocus)
+            if((v.getId() == R.id.phoneNum && !hasFocus) || (v.getId() == R.id.email && !hasFocus) || (v.getId() == R.id.textMsg && !hasFocus)
                     || (v.getId() == R.id.volum && !hasFocus)
                     || (v.getId() == R.id.rate && !hasFocus )) {
 

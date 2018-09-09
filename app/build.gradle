@@ -3,9 +3,9 @@ apply plugin: 'com.android.application'
 android {
     signingConfigs {
         config {
-            keyAlias 'voice'
-            keyPassword 'vicufjvv3'
-            storeFile file('C:/Users/Administrator/Desktop/voicemonitor.jks')
+            keyAlias 'jazzy'
+            keyPassword 'vicufjvv123'
+            storeFile file('D:/Dropbox/jazzy.jks')
             storePassword 'vicufjvv'
         }
     }
