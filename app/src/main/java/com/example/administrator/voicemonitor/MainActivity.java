@@ -191,10 +191,9 @@ public class MainActivity extends AppCompatActivity {
                         startButton.setText("监听中......");
                         AudioRecordUtil.getInstance().getNoiseLevel();
 
-                        Intent intent = new Intent();
+                        /*Intent intent = new Intent();
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        intent.setAction("com.sendSMS");
-                        intent.setAction("com.sendEmail");
+                        intent.setAction("com.sendEmail");*/
                     }
                 }
             }
@@ -305,6 +304,7 @@ public class MainActivity extends AppCompatActivity {
                 PendingIntent deliveryIntent = PendingIntent.getBroadcast(MainActivity.this, 0, delivery , 0);
                 for(int i = 0; i< phoneNums.length; i++) {
                     manager.sendTextMessage(phoneNums[i].toString().trim(), null, textMsg.getText().toString(), sentIntent, deliveryIntent);
+                    Log.d("SMS", "短信发送结束");
                 }
             }
         }
@@ -315,31 +315,27 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (checkPermission()) {
-                for(int i = 0; i< emails.length; i++) {
-                    //发送邮箱
-                    HttpURLConnection conn=null;//声明连接对象
-                    String urlStr="https://www.apieye.com/ress104.php";
-                    InputStream is = null;
-                    String resultData = "";
-                    try {
-                        URL url = new URL(urlStr); //URL对象
-                        conn = (HttpURLConnection)url.openConnection(); //使用URL打开一个链接,下面设置这个连接
-                        conn.setRequestMethod("GET"); //使用get请求
-
-                        if(conn.getResponseCode()==200){//返回200表示连接成功
-                            is = conn.getInputStream(); //获取输入流
-                            InputStreamReader isr = new InputStreamReader(is);
-                            BufferedReader bufferReader = new BufferedReader(isr);
-                            String inputLine  = "";
-                            while((inputLine = bufferReader.readLine()) != null){
-                                resultData += inputLine + "\n";
-                            }
-                        }
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                //发送短信
+                SmsManager manager = SmsManager.getDefault();
+                Intent sent = new Intent();
+                sent.setAction("com.send");
+                PendingIntent sentIntent = PendingIntent.getBroadcast(MainActivity.this, 0, sent, 0);
+                Intent delivery = new Intent();
+                delivery.setAction("com.delivery");
+                PendingIntent deliveryIntent = PendingIntent.getBroadcast(MainActivity.this, 0, delivery , 0);
+                for(int i = 0; i< phoneNums.length; i++) {
+                    if(phoneNums[i].toString().trim() != "") {
+                        manager.sendTextMessage(phoneNums[i].toString().trim(), null, textMsg.getText().toString(), sentIntent, deliveryIntent);
+                        Log.d("SMS", "短信发送结束");
                     }
-
+                }
+                //发送邮件
+                Toast.makeText(MainActivity.this, "Email send  success",
+                        Toast.LENGTH_LONG).show();
+                for(int i = 0; i< emails.length; i++) {
+                    if(emails[i].toString().trim() != "") {
+                        NetUtil.getInstance().sendEmail(emails[i].toString().trim(), textMsg.getText().toString());
+                    }
                 }
             }
         }

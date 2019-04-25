@@ -70,7 +70,7 @@ public class AudioRecordUtil {
                     // 平方和除以数据总长度，得到音量大小。
                     double mean = v / (double) r;
                     double volume = 10 * Math.log10(mean);
-                    Log.d(TAG, "分贝值:" + volume);
+                    //Log.d(TAG, "分贝值:" + volume);
                     sendProress(volume);
                     if(volume > voiceNum){
                         if (System.currentTimeMillis() - curTime > 1000 * textRate) {
@@ -78,7 +78,6 @@ public class AudioRecordUtil {
                             Log.d(TAG, "声音达标");
                             Intent intent = new Intent();
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            intent.setAction("com.sendSMS");
                             intent.setAction("com.sendEmail");
                             PApplication.getAppContext().sendBroadcast(intent);
                         }

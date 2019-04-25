@@ -65,14 +65,14 @@
         android:layout_height="wrap_content"
         android:layout_width="match_parent">
         <TextView
-            android:text="短信内容:"
+            android:text="通知内容:"
             android:layout_marginLeft="10dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
 
         <EditText
             android:id="@+id/textMsg"
-            android:text="这是短信的内容,不要太长了"
+            android:text="尽量控制在15字内"
             android:maxLines="1"
             android:inputType="text"
             android:layout_marginLeft="10dp"
@@ -114,7 +114,7 @@
         android:layout_height="wrap_content"
         android:layout_width="match_parent">
         <TextView
-            android:text="短信频率(秒):"
+            android:text="通知频率(秒):"
             android:layout_marginLeft="10dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
